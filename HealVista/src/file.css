@@ -1,0 +1,117 @@
+body {
+    background: #ecf0f3;
+    font-family: "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .neu-container {
+    display: flex;
+    width: 800px;
+    height: 480px;
+    background: #ecf0f3;
+    border-radius: 25px;
+    box-shadow: 8px 8px 15px #c8d0e7, -8px -8px 15px #ffffff;
+    transition: 0.5s ease-in-out;
+    overflow: hidden;
+  }
+  
+  .neu-card {
+    flex: 1;
+    padding: 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: 0.5s ease;
+  }
+  
+  .login {
+    border-right: 1px solid #d1d9e6;
+  
+  }
+  
+  .signup {
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(145deg, #d4e0ec, #f2f8ff);
+    border-top-right-radius: 25px;
+    border-bottom-right-radius: 25px;/* Pushes it 60px to the right */
+  }
+  
+  h2 {
+    color: #3c4b64;
+    margin-bottom: 20px;
+  }
+  
+  label {
+    margin: 10px 0 5px;
+    font-weight: 500;
+    color: #5a6570;
+  }
+  
+  input {
+    padding: 12px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 10px;
+    background: #ecf0f3;
+    box-shadow: inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff;
+    font-size: 14px;
+  }
+  
+  .neu-btn {
+    padding: 12px;
+    background: linear-gradient(to right, #4a90e2, #357ae8);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 3px 3px 5px #c8d0e7, -3px -3px 5px #ffffff;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s ease;
+  }
+  
+  .neu-btn:hover {
+    transform: scale(1.03);
+  }
+  
+  .neu-btn.outline {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    background: #ecf0f3;
+    color: #357ae8;
+    box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff;
+  }
+  
+  .forgot {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #357ae8;
+    cursor: pointer;
+  }
+  
+  .social-icons {
+    display: flex;
+    margin-top: 20px;
+    gap: 10px;
+  }
+  
+  .circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ecf0f3;
+    box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
