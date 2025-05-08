@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Clock, Calendar, Award, BookOpen, Star, X } from "lucide-react";
+import { Calendar, Star, X } from "lucide-react";
+import './doc.css';
 
 export default function DoctorsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -19,7 +20,7 @@ export default function DoctorsPage() {
       id: 1,
       name: "Dr. Williams",
       specialization: "Cardiologist",
-      image: "/api/placeholder/150/150",
+      image: "https://placehold.co/150x150",
       education: [
         "MD, Harvard Medical School",
         "Residency at Johns Hopkins Hospital",
@@ -42,7 +43,7 @@ export default function DoctorsPage() {
       id: 2,
       name: "Dr. Johnson",
       specialization: "Neurologist",
-      image: "/api/placeholder/150/150",
+      image: "https://placehold.co/150x150",
       education: [
         "MD, Yale School of Medicine",
         "Residency at Mayo Clinic",
@@ -65,7 +66,7 @@ export default function DoctorsPage() {
       id: 3,
       name: "Dr. Smith",
       specialization: "Pediatrician",
-      image: "/api/placeholder/150/150",
+      image: "https://placehold.co/150x150",
       education: [
         "MD, Stanford University",
         "Residency at Children's Hospital of Philadelphia",
@@ -88,7 +89,7 @@ export default function DoctorsPage() {
       id: 4,
       name: "Dr. Patel",
       specialization: "Dermatologist",
-      image: "/api/placeholder/150/150",
+      image: "https://placehold.co/150x150",
       education: [
         "MD, University of California, San Francisco",
         "Residency at New York University",
@@ -132,7 +133,6 @@ export default function DoctorsPage() {
   };
 
   const handleSubmit = () => {
-    // Here you would normally send the data to your backend
     alert(`Appointment booked with ${selectedDoctor.name}!`);
     setSelectedDoctor(null);
     setShowBookingForm(false);
@@ -148,37 +148,34 @@ export default function DoctorsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-blue-50 p-6">
+    <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--primary-bg)' }}>
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-blue-800 mb-8">Our Doctors</h1>
+        <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--primary-dark-blue)' }}>Our Doctors</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {doctors.map((doctor) => (
             <div 
               key={doctor.id} 
-              className="bg-white rounded-xl shadow-lg p-6 transform transition-all duration-300 hover:scale-105 cursor-pointer"
-              style={{
-                boxShadow: "8px 8px 15px #d1d9e6, -8px -8px 15px #ffffff"
-              }}
+              className="doctor-card"
               onClick={() => handleDoctorClick(doctor)}
             >
               <div className="flex flex-col items-center">
                 <div className="w-24 h-24 rounded-full overflow-hidden mb-4">
                   <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover" />
                 </div>
-                <h2 className="text-xl font-semibold text-blue-800">{doctor.name}</h2>
-                <p className="text-blue-600">{doctor.specialization}</p>
+                <h2 className="text-xl font-semibold" style={{ color: 'var(--primary-dark-blue)' }}>{doctor.name}</h2>
+                <p style={{ color: 'var(--primary-blue)' }}>{doctor.specialization}</p>
                 <div className="flex items-center mt-2">
                   <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                  <span className="ml-1 text-gray-700">{doctor.rating}</span>
+                  <span className="ml-1">{doctor.rating}</span>
                 </div>
                 <div className="mt-4 w-full">
-                  <div className="flex items-center text-gray-600 mb-1">
+                  <div className="flex items-center mb-1">
                     <Calendar className="w-4 h-4 mr-2" />
                     <span className="text-sm">{doctor.availability[0].day}, {doctor.availability[0].slots[0]}</span>
                   </div>
                   <button 
-                    className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="primary-button w-full mt-4"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDoctorClick(doctor);
@@ -194,16 +191,11 @@ export default function DoctorsPage() {
       </div>
 
       {selectedDoctor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div 
-            className="bg-white rounded-2xl w-full max-w-4xl max-h-screen overflow-y-auto p-6 relative"
-            style={{
-              boxShadow: "10px 10px 20px #d1d9e6, -10px -10px 20px #ffffff"
-            }}
-          >
+        <div className="modal-backdrop">
+          <div className="modal-content">
             <button 
               onClick={handleClose}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4"
             >
               <X className="w-6 h-6" />
             </button>
@@ -214,18 +206,17 @@ export default function DoctorsPage() {
                   <div className="w-32 h-32 rounded-full overflow-hidden mb-4">
                     <img src={selectedDoctor.image} alt={selectedDoctor.name} className="w-full h-full object-cover" />
                   </div>
-                  <h2 className="text-2xl font-bold text-blue-800">{selectedDoctor.name}</h2>
-                  <p className="text-blue-600 font-medium">{selectedDoctor.specialization}</p>
+                  <h2 className="text-2xl font-bold" style={{ color: 'var(--primary-dark-blue)' }}>{selectedDoctor.name}</h2>
+                  <p className="font-medium" style={{ color: 'var(--primary-blue)' }}>{selectedDoctor.specialization}</p>
                   <div className="flex items-center mt-2">
                     <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                    <span className="ml-1 text-gray-700">{selectedDoctor.rating}</span>
+                    <span className="ml-1">{selectedDoctor.rating}</span>
                   </div>
-                  <div className="flex items-center mt-2 text-gray-600">
-                    <Clock className="w-4 h-4 mr-1" />
+                  <div className="flex items-center mt-2">
                     <span>{selectedDoctor.experience} experience</span>
                   </div>
                   <button 
-                    className="mt-6 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors w-full"
+                    className="primary-button mt-6 w-full"
                     onClick={handleBookingClick}
                   >
                     Book Appointment
@@ -234,11 +225,10 @@ export default function DoctorsPage() {
                 
                 <div className="md:col-span-2">
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-3">
-                      <BookOpen className="w-5 h-5 mr-2" />
+                    <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--primary-dark-blue)' }}>
                       Education
                     </h3>
-                    <ul className="pl-6 list-disc text-gray-700">
+                    <ul className="pl-6 list-disc">
                       {selectedDoctor.education.map((edu, idx) => (
                         <li key={idx} className="mb-1">{edu}</li>
                       ))}
@@ -246,17 +236,17 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-3">
-                      <Calendar className="w-5 h-5 mr-2" />
+                    <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--primary-dark-blue)' }}>
                       Availability
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {selectedDoctor.availability.map((avail, idx) => (
-                        <div key={idx} className="bg-blue-50 p-3 rounded-lg">
-                          <p className="font-medium text-blue-700">{avail.day}</p>
+                        <div key={idx} className="p-3 rounded-lg" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
+                          <p className="font-medium" style={{ color: 'var(--primary-blue)' }}>{avail.day}</p>
                           <div>
                             {avail.slots.map((slot, slotIdx) => (
-                              <span key={slotIdx} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm mr-2 mb-2">
+                              <span key={slotIdx} className="inline-block px-2 py-1 rounded text-sm mr-2 mb-2" 
+                                style={{ backgroundColor: 'var(--primary-bg)', color: 'var(--primary-dark-blue)' }}>
                                 {slot}
                               </span>
                             ))}
@@ -267,12 +257,11 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div>
-                    <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-3">
-                      <Award className="w-5 h-5 mr-2" />
+                    <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--primary-dark-blue)' }}>
                       Patient Reviews
                     </h3>
                     {selectedDoctor.reviews.map((review, idx) => (
-                      <div key={idx} className="mb-3 p-3 bg-gray-50 rounded-lg">
+                      <div key={idx} className="mb-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
                         <div className="flex justify-between items-center mb-1">
                           <p className="font-medium">{review.user}</p>
                           <div className="flex">
@@ -281,7 +270,7 @@ export default function DoctorsPage() {
                             ))}
                           </div>
                         </div>
-                        <p className="text-gray-600 text-sm">{review.comment}</p>
+                        <p className="text-sm">{review.comment}</p>
                       </div>
                     ))}
                   </div>
@@ -289,76 +278,78 @@ export default function DoctorsPage() {
               </div>
             ) : (
               <div>
-                <h2 className="text-2xl font-bold text-blue-800 mb-6">Book Appointment with {selectedDoctor.name}</h2>
+                <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--primary-dark-blue)' }}>
+                  Book Appointment with {selectedDoctor.name}
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   <div>
-                    <label className="block text-gray-700 mb-1">Full Name</label>
+                    <label className="block mb-1">Full Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-gray-700 mb-1">Age</label>
+                    <label className="block mb-1">Age</label>
                     <input
                       type="number"
                       name="age"
                       value={formData.age}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-gray-700 mb-1">Email</label>
+                    <label className="block mb-1">Email</label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-gray-700 mb-1">Phone Number</label>
+                    <label className="block mb-1">Phone Number</label>
                     <input
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-gray-700 mb-1">Preferred Date</label>
+                    <label className="block mb-1">Preferred Date</label>
                     <input
                       type="date"
                       name="date"
                       value={formData.date}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-gray-700 mb-1">Preferred Time</label>
+                    <label className="block mb-1">Preferred Time</label>
                     <select
                       name="time"
                       value={formData.time}
                       onChange={handleInputChange}
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input"
+                      required
                     >
                       <option value="">Select time</option>
                       {selectedDoctor.availability.flatMap(avail => 
@@ -372,14 +363,14 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 mb-1">Reason for Visit</label>
+                    <label className="block mb-1">Reason for Visit</label>
                     <textarea
                       name="reason"
                       value={formData.reason}
                       onChange={handleInputChange}
                       rows="4"
-                      className="w-full p-3 bg-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      style={{ boxShadow: "inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff" }}
+                      className="neumorphic-input w-full"
+                      required
                     ></textarea>
                   </div>
                   
@@ -387,14 +378,15 @@ export default function DoctorsPage() {
                     <button
                       type="button"
                       onClick={() => setShowBookingForm(false)}
-                      className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
+                      style={{ backgroundColor: 'var(--shadow-dark)' }}
                     >
                       Back
                     </button>
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="primary-button"
                     >
                       Confirm Booking
                     </button>
