@@ -1,75 +1,238 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './med.css';
-import { Search, PlusCircle, MinusCircle, RefreshCw } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, RefreshCw, Trash2, Edit } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api/pharmacy';
 
 const MedStock = () => {
-  // Sample medication data
-  const [medications, setMedications] = useState([
-    { id: 1, name: 'Amoxicillin', category: 'Antibiotics', stock: 850, capacity: 1000, expiryDate: '2025-12-15', status: 'Good' },
-    { id: 2, name: 'Ibuprofen', category: 'Analgesics', stock: 600, capacity: 1000, expiryDate: '2026-03-22', status: 'Good' },
-    { id: 3, name: 'Paracetamol', category: 'Analgesics', stock: 450, capacity: 1000, expiryDate: '2025-08-10', status: 'Medium' },
-    { id: 4, name: 'Oseltamivir', category: 'Antivirals', stock: 450, capacity: 1000, expiryDate: '2025-10-05', status: 'Medium' },
-    { id: 5, name: 'Azithromycin', category: 'Antibiotics', stock: 320, capacity: 1000, expiryDate: '2025-11-30', status: 'Low' },
-    { id: 6, name: 'Morphine', category: 'Analgesics', stock: 200, capacity: 500, expiryDate: '2026-01-18', status: 'Low' },
-    { id: 7, name: 'Acyclovir', category: 'Antivirals', stock: 180, capacity: 400, expiryDate: '2025-09-12', status: 'Critical' },
-  ]);
+  // State for medications
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState('');
   
   // State for modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
   
   // State for new medication form
   const [newMed, setNewMed] = useState({
-    name: '',
-    category: '',
-    stock: 0,
-    capacity: 1000,
-    expiryDate: '',
-    status: 'Good'
+    medicine_name: '',
+    stock_quantity: 0,
+    expiry_date: '',
   });
+
+  // Fetch medications from API
+  const fetchMedications = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      
+      // Transform API data to match our component's structure
+      const transformedData = data.map(med => ({
+        id: med.medicine_id,
+        name: med.medicine_name,
+        // Infer category based on medicine name if needed
+        category: inferCategory(med.medicine_name),
+        stock: med.stock_quantity,
+        // Set default capacity for display purposes
+        capacity: 1000,
+        expiryDate: new Date(med.expiry_date).toISOString().split('T')[0],
+        status: getStatusFromStock(med.stock_quantity, 1000)
+      }));
+      
+      setMedications(transformedData);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch medications: ' + err.message);
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Simple function to infer category from medicine name
+  // This is just for display purposes since category isn't in the DB
+  const inferCategory = (medicineName) => {
+    const nameLower = medicineName.toLowerCase();
+    
+    if (nameLower.includes('amox') || nameLower.includes('cillin') || 
+        nameLower.includes('mycin') || nameLower.includes('floxacin')) {
+      return 'Antibiotics';
+    } else if (nameLower.includes('paracetamol') || nameLower.includes('ibuprofen') || 
+               nameLower.includes('aspirin') || nameLower.includes('morphine')) {
+      return 'Analgesics';
+    } else if (nameLower.includes('vir') || nameLower.includes('tamiflu')) {
+      return 'Antivirals';
+    } else if (nameLower.includes('hist') || nameLower.includes('cetirizine') || 
+              nameLower.includes('loratadine')) {
+      return 'Antihistamines';
+    } else if (nameLower.includes('stat') || nameLower.includes('pril') || 
+              nameLower.includes('sartan')) {
+      return 'Cardiovascular';
+    }
+    
+    return 'Other';
+  };
+
+  // Calculate status based on stock level
+  const getStatusFromStock = (stock, capacity) => {
+    const percentage = (stock / capacity) * 100;
+    if (percentage <= 20) return 'Critical';
+    if (percentage <= 40) return 'Low';
+    if (percentage <= 70) return 'Medium';
+    return 'Good';
+  };
+
+  // Load medications on component mount
+  useEffect(() => {
+    fetchMedications();
+  }, []);
 
   // Function to handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewMed({
       ...newMed,
-      [name]: name === 'stock' || name === 'capacity' ? parseInt(value, 10) : value
+      [name]: name === 'stock_quantity' ? parseInt(value, 10) || 0 : value
     });
   };
 
-  // Function to handle form submission
-  const handleSubmit = (e) => {
+  // Function to handle adding a new medication
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Calculate status based on stock level
-    let status = 'Good';
-    const percentage = (newMed.stock / newMed.capacity) * 100;
-    if (percentage <= 20) status = 'Critical';
-    else if (percentage <= 40) status = 'Low';
-    else if (percentage <= 70) status = 'Medium';
-    
-    // Create new medication with unique ID
-    const newMedication = {
-      ...newMed,
-      id: medications.length > 0 ? Math.max(...medications.map(med => med.id)) + 1 : 1,
-      status
-    };
-    
-    // Add new medication to state
-    setMedications([...medications, newMedication]);
-    
-    // Reset form and close modal
+    try {
+      const medicationData = {
+        medicine_name: newMed.medicine_name,
+        stock_quantity: newMed.stock_quantity,
+        expiry_date: newMed.expiry_date
+      };
+
+      if (isEditMode && editId) {
+        // Update existing medication
+        const response = await fetch(`${API_URL}/${editId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(medicationData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update medication');
+        }
+      } else {
+        // Add new medication
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(medicationData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to add medication');
+        }
+      }
+      
+      // Refresh the medication list
+      fetchMedications();
+      
+      // Reset form and close modal
+      resetForm();
+    } catch (err) {
+      setError(err.message);
+      console.error('Error saving medication:', err);
+    }
+  };
+
+  // Function to handle deleting a medication
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this medication?')) {
+      try {
+        const response = await fetch(`${API_URL}/${id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete medication');
+        }
+
+        // Refresh medications list
+        fetchMedications();
+      } catch (err) {
+        setError(err.message);
+        console.error('Error deleting medication:', err);
+      }
+    }
+  };
+
+  // Function to handle stock increment/decrement
+  const handleStockChange = async (id, amount) => {
+    try {
+      // Find the medication to update
+      const medication = medications.find(med => med.id === id);
+      if (!medication) return;
+
+      // Calculate new stock value
+      const newStock = Math.max(0, medication.stock + amount);
+      
+      // Update in the database
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          medicine_name: medication.name,
+          stock_quantity: newStock,
+          expiry_date: medication.expiryDate
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update stock');
+      }
+
+      // Refresh medications
+      fetchMedications();
+    } catch (err) {
+      setError(err.message);
+      console.error('Error updating stock:', err);
+    }
+  };
+
+  // Function to handle editing a medication
+  const handleEdit = (med) => {
+    setIsEditMode(true);
+    setEditId(med.id);
     setNewMed({
-      name: '',
-      category: '',
-      stock: 0,
-      capacity: 1000,
-      expiryDate: '',
-      status: 'Good'
+      medicine_name: med.name,
+      stock_quantity: med.stock,
+      expiry_date: med.expiryDate
+    });
+    setIsModalOpen(true);
+  };
+
+  // Reset form and modal state
+  const resetForm = () => {
+    setNewMed({
+      medicine_name: '',
+      stock_quantity: 0,
+      expiry_date: '',
     });
     setIsModalOpen(false);
+    setIsEditMode(false);
+    setEditId(null);
   };
   
   // Filter medications based on search term
@@ -92,6 +255,19 @@ const MedStock = () => {
     return (stock / capacity) * 100;
   };
 
+  // Calculate summary statistics
+  const lowStockItems = medications.filter(med => (med.stock / 1000) < 0.3).length;
+  
+  // Calculate medications expiring within 30 days
+  const today = new Date();
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(today.getDate() + 30);
+  
+  const expiringItems = medications.filter(med => {
+    const expiryDate = new Date(med.expiryDate);
+    return expiryDate <= thirtyDaysFromNow && expiryDate >= today;
+  }).length;
+
   return (
     <div className="med-stock-container">
       <div className="med-header">
@@ -108,6 +284,8 @@ const MedStock = () => {
         </div>
       </div>
 
+      {error && <div className="error-message">{error}</div>}
+
       <div className="med-summary">
         <div className="summary-card">
           <h3>Total Medications</h3>
@@ -115,11 +293,11 @@ const MedStock = () => {
         </div>
         <div className="summary-card">
           <h3>Low Stock Items</h3>
-          <p>{medications.filter(med => (med.stock / med.capacity) < 0.3).length}</p>
+          <p>{lowStockItems}</p>
         </div>
         <div className="summary-card">
           <h3>Expiring Soon</h3>
-          <p>2</p>
+          <p>{expiringItems}</p>
         </div>
       </div>
 
@@ -128,140 +306,141 @@ const MedStock = () => {
           <PlusCircle size={16} />
           Add New Medication
         </button>
-        <button className="action-button">
+        <button className="action-button" onClick={fetchMedications}>
           <RefreshCw size={16} />
-          Update Inventory
+          Refresh Inventory
         </button>
       </div>
 
       <div className="med-table-container">
-        <table className="med-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Stock Level</th>
-              <th>Expiry Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredMedications.map(med => (
-              <tr key={med.id}>
-                <td>{med.name}</td>
-                <td>{med.category}</td>
-                <td>
-                  <div className="stock-level">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress" 
-                        style={{
-                          width: `${getStockPercentage(med.stock, med.capacity)}%`,
-                          backgroundColor: getStockColor(med.stock, med.capacity)
-                        }}
-                      ></div>
-                    </div>
-                    <span className="stock-text">{med.stock}/{med.capacity}</span>
-                  </div>
-                </td>
-                <td>{med.expiryDate}</td>
-                <td>
-                  <span className={`status-badge status-${med.status.toLowerCase()}`}>
-                    {med.status}
-                  </span>
-                </td>
-                <td className="actions-cell">
-                  <button className="table-button add-button">
-                    <PlusCircle size={16} />
-                  </button>
-                  <button className="table-button remove-button">
-                    <MinusCircle size={16} />
-                  </button>
-                </td>
+        {loading ? (
+          <div className="loading">Loading medications...</div>
+        ) : (
+          <table className="med-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Stock Level</th>
+                <th>Expiry Date</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredMedications.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="no-data">No medications found</td>
+                </tr>
+              ) : (
+                filteredMedications.map(med => (
+                  <tr key={med.id}>
+                    <td>{med.name}</td>
+                    <td>{med.category}</td>
+                    <td>
+                      <div className="stock-level">
+                        <div className="progress-bar">
+                          <div 
+                            className="progress" 
+                            style={{
+                              width: `${getStockPercentage(med.stock, med.capacity)}%`,
+                              backgroundColor: getStockColor(med.stock, med.capacity)
+                            }}
+                          ></div>
+                        </div>
+                        <span className="stock-text">{med.stock}/{med.capacity}</span>
+                      </div>
+                    </td>
+                    <td>{med.expiryDate}</td>
+                    <td>
+                      <span className={`status-badge status-${med.status.toLowerCase()}`}>
+                        {med.status}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      <button 
+                        className="table-button add-button"
+                        onClick={() => handleStockChange(med.id, 10)}
+                        title="Add 10 units"
+                      >
+                        <PlusCircle size={16} />
+                      </button>
+                      <button 
+                        className="table-button remove-button"
+                        onClick={() => handleStockChange(med.id, -10)}
+                        title="Remove 10 units"
+                      >
+                        <MinusCircle size={16} />
+                      </button>
+                      <button 
+                        className="table-button edit-button"
+                        onClick={() => handleEdit(med)}
+                        title="Edit medication"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button 
+                        className="table-button delete-button"
+                        onClick={() => handleDelete(med.id)}
+                        title="Delete medication"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Add Medication Modal */}
+      {/* Add/Edit Medication Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>Add New Medication</h2>
+            <h2>{isEditMode ? 'Edit Medication' : 'Add New Medication'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="name">Medication Name</label>
+                <label htmlFor="medicine_name">Medication Name</label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={newMed.name}
+                  id="medicine_name"
+                  name="medicine_name"
+                  value={newMed.medicine_name}
                   onChange={handleInputChange}
                   required
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="category">Category</label>
-                <select
-                  id="category"
-                  name="category"
-                  value={newMed.category}
+                <label htmlFor="stock_quantity">Stock Quantity</label>
+                <input
+                  type="number"
+                  id="stock_quantity"
+                  name="stock_quantity"
+                  value={newMed.stock_quantity}
                   onChange={handleInputChange}
+                  min="0"
                   required
-                >
-                  <option value="">Select Category</option>
-                  <option value="Antibiotics">Antibiotics</option>
-                  <option value="Analgesics">Analgesics</option>
-                  <option value="Antivirals">Antivirals</option>
-                  <option value="Antihistamines">Antihistamines</option>
-                  <option value="Cardiovascular">Cardiovascular</option>
-                </select>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="stock">Initial Stock</label>
-                  <input
-                    type="number"
-                    id="stock"
-                    name="stock"
-                    value={newMed.stock}
-                    onChange={handleInputChange}
-                    min="0"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="capacity">Max Capacity</label>
-                  <input
-                    type="number"
-                    id="capacity"
-                    name="capacity"
-                    value={newMed.capacity}
-                    onChange={handleInputChange}
-                    min="100"
-                    required
-                  />
-                </div>
+                />
               </div>
               <div className="form-group">
-                <label htmlFor="expiryDate">Expiry Date</label>
+                <label htmlFor="expiry_date">Expiry Date</label>
                 <input
                   type="date"
-                  id="expiryDate"
-                  name="expiryDate"
-                  value={newMed.expiryDate}
+                  id="expiry_date"
+                  name="expiry_date"
+                  value={newMed.expiry_date}
                   onChange={handleInputChange}
                   required
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="cancel-button" onClick={() => setIsModalOpen(false)}>
+                <button type="button" className="cancel-button" onClick={resetForm}>
                   Cancel
                 </button>
                 <button type="submit" className="submit-button">
-                  Add Medication
+                  {isEditMode ? 'Update Medication' : 'Add Medication'}
                 </button>
               </div>
             </form>
