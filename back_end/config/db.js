@@ -14,7 +14,9 @@ const config = {
 };
 
 sql.connect(config)
-  .then(() => console.log('✅ MSSQL Connected'))
-  .catch(err => console.error('❌ DB Connection Failed', err));
+    .then(() => console.log('✅ MSSQL Connected'))
+    .catch(err => console.error('❌ DB Connection Failed', err));
 
 module.exports = sql;
+
+

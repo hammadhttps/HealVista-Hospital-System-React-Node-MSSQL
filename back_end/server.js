@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const patientRoutes = require('./routes/patientRoutes');
+
 const pharmacyRoutes = require('./routes/pharmacy_routes');
 const labRoutes = require('./routes/lab_routes');
 const doctorRoutes = require('./routes/doctorRoutes');
@@ -18,8 +18,8 @@ app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
+const patientRoutes = require('./routes/patient_routes');
 app.use('/api/patients', patientRoutes);
-
 app.get('/', (req, res) => {
     res.send("🚀 Healvista Backend Running");
 });
