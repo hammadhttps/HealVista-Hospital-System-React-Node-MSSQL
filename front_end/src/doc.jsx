@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Star, X } from "lucide-react";
+import api from './api'; // Custom axios instance
 import './doc.css';
 
 export default function DoctorsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -15,100 +20,38 @@ export default function DoctorsPage() {
     reason: ""
   });
 
-  const doctors = [
-    {
-      id: 1,
-      name: "Dr. Williams",
-      specialization: "Cardiologist",
-      image: "https://placehold.co/150x150",
-      education: [
-        "MD, Harvard Medical School",
-        "Residency at Johns Hopkins Hospital",
-        "Fellowship in Interventional Cardiology"
-      ],
-      experience: "15 years",
-      rating: 4.8,
-      reviews: [
-        { user: "Patient A", comment: "Excellent bedside manner and very thorough.", rating: 5 },
-        { user: "Patient B", comment: "Knowledgeable and professional.", rating: 5 },
-        { user: "Patient C", comment: "Wait time was a bit long, but great care.", rating: 4 }
-      ],
-      availability: [
-        { day: "Monday", slots: ["9:00 AM", "2:30 PM"] },
-        { day: "Wednesday", slots: ["10:30 AM", "3:00 PM"] },
-        { day: "Friday", slots: ["9:00 AM", "1:00 PM"] }
-      ]
-    },
-    {
-      id: 2,
-      name: "Dr. Johnson",
-      specialization: "Neurologist",
-      image: "https://placehold.co/150x150",
-      education: [
-        "MD, Yale School of Medicine",
-        "Residency at Mayo Clinic",
-        "Fellowship in Neurology"
-      ],
-      experience: "12 years",
-      rating: 4.6,
-      reviews: [
-        { user: "Patient D", comment: "Very attentive and explains everything clearly.", rating: 5 },
-        { user: "Patient E", comment: "Helped me understand my condition better.", rating: 4 },
-        { user: "Patient F", comment: "Highly recommended for neurological issues.", rating: 5 }
-      ],
-      availability: [
-        { day: "Tuesday", slots: ["8:00 AM", "1:30 PM"] },
-        { day: "Thursday", slots: ["11:00 AM", "4:00 PM"] },
-        { day: "Saturday", slots: ["9:00 AM"] }
-      ]
-    },
-    {
-      id: 3,
-      name: "Dr. Smith",
-      specialization: "Pediatrician",
-      image: "https://placehold.co/150x150",
-      education: [
-        "MD, Stanford University",
-        "Residency at Children's Hospital of Philadelphia",
-        "Board Certified in Pediatrics"
-      ],
-      experience: "10 years",
-      rating: 4.9,
-      reviews: [
-        { user: "Parent A", comment: "Amazing with kids, very patient and kind.", rating: 5 },
-        { user: "Parent B", comment: "My children love Dr. Smith!", rating: 5 },
-        { user: "Parent C", comment: "Great diagnostician and very thorough.", rating: 5 }
-      ],
-      availability: [
-        { day: "Monday", slots: ["8:30 AM", "1:00 PM"] },
-        { day: "Wednesday", slots: ["9:00 AM", "2:30 PM"] },
-        { day: "Friday", slots: ["10:00 AM", "3:00 PM"] }
-      ]
-    },
-    {
-      id: 4,
-      name: "Dr. Patel",
-      specialization: "Dermatologist",
-      image: "https://placehold.co/150x150",
-      education: [
-        "MD, University of California, San Francisco",
-        "Residency at New York University",
-        "Fellowship in Cosmetic Dermatology"
-      ],
-      experience: "8 years",
-      rating: 4.7,
-      reviews: [
-        { user: "Patient G", comment: "Solved my skin issues that no one else could!", rating: 5 },
-        { user: "Patient H", comment: "Very knowledgeable and caring.", rating: 5 },
-        { user: "Patient I", comment: "Office wait time can be long, but worth it.", rating: 4 }
-      ],
-      availability: [
-        { day: "Tuesday", slots: ["9:30 AM", "2:00 PM"] },
-        { day: "Thursday", slots: ["10:00 AM", "3:30 PM"] },
-        { day: "Saturday", slots: ["11:00 AM"] }
-      ]
-    }
-  ];
+  // Fetch doctors from backend
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const response = await api.get('/api/doctors');
+        const doctorsWithDetails = await Promise.all(
+          response.data.map(async doctor => {
+            try {
+              const reviewsResponse = await api.get(`/api/doctors/${doctor.doctor_id}/reviews`);
+              return {
+                ...doctor,
+                reviews: reviewsResponse.data || []
+              };
+            } catch (err) {
+              console.error(`Error fetching reviews for doctor ${doctor.doctor_id}:`, err);
+              return {
+                ...doctor,
+                reviews: []
+              };
+            }
+          })
+        );
+        setDoctors(doctorsWithDetails);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
 
   const handleDoctorClick = (doctor) => {
     setSelectedDoctor(doctor);
@@ -132,20 +75,137 @@ export default function DoctorsPage() {
     }));
   };
 
-  const handleSubmit = () => {
-    alert(`Appointment booked with ${selectedDoctor.name}!`);
-    setSelectedDoctor(null);
-    setShowBookingForm(false);
-    setFormData({
-      name: "",
-      age: "",
-      email: "",
-      phone: "",
-      date: "",
-      time: "",
-      reason: ""
-    });
+  const validateForm = () => {
+    if (!formData.name || !formData.age || !formData.email || 
+        !formData.phone || !formData.date || !formData.time || 
+        !formData.reason) {
+      alert('Please fill all required fields');
+      return false;
+    }
+    
+    if (!/^\d+$/.test(formData.age)) {
+      alert('Please enter a valid age');
+      return false;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      alert('Please enter a valid email address');
+      return false;
+    }
+
+    return true;
   };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    try {
+      // 1. Create patient
+      const patientResponse = await api.post('/api/patients', {
+        full_name: formData.name,
+        date_of_birth: new Date(new Date().getFullYear() - formData.age, 0, 1),
+        gender: '', // Add gender field to form if needed
+        contact_info: `${formData.email}, ${formData.phone}`
+      });
+
+      const patientId = patientResponse.data.patient_id;
+
+      // 2. Parse date and time
+      const [day, time] = formData.time.split(', ');
+      const [hours, period] = time.split(' ');
+      let [hour, minute] = hours.split(':').map(Number);
+      
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+
+      const appointmentDate = new Date(formData.date);
+      appointmentDate.setHours(hour, minute || 0);
+
+      // 3. Create appointment
+      const appointmentResponse = await api.post('/api/appointments', {
+        patient_id: patientId,
+        doctor_id: selectedDoctor.doctor_id,
+        appointment_date: appointmentDate.toISOString(),
+        status: 'Scheduled'
+      });
+
+      // 4. Create feedback placeholder
+      await api.post('/api/appointments/feedback', {
+        appointment_id: appointmentResponse.data.appointment_id,
+        patient_id: patientId,
+        comments: formData.reason
+      });
+
+      alert(`Appointment booked with ${selectedDoctor.full_name}!`);
+      setSelectedDoctor(null);
+      setShowBookingForm(false);
+      setFormData({
+        name: "",
+        age: "",
+        email: "",
+        phone: "",
+        date: "",
+        time: "",
+        reason: ""
+      });
+    } catch (err) {
+      console.error('Full error:', err);
+      let errorMessage = 'Failed to book appointment';
+      
+      if (err.response) {
+        errorMessage += `: ${err.response.data?.message || err.response.statusText}`;
+        if (err.response.status === 404) {
+          errorMessage += '\n(Endpoint not found - check backend routes)';
+        }
+      } else {
+        errorMessage += `: ${err.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Transform backend data to match frontend structure
+  const transformDoctorData = (doctor) => {
+    let availability = [];
+    try {
+      availability = doctor.availability_schedule ? JSON.parse(doctor.availability_schedule) : [];
+    } catch {
+      availability = [
+        { day: "Monday", slots: ["9:00 AM", "2:30 PM"] },
+        { day: "Wednesday", slots: ["10:30 AM", "3:00 PM"] }
+      ];
+    }
+
+    return {
+      ...doctor,
+      id: doctor.doctor_id,
+      name: doctor.full_name,
+      image: "https://placehold.co/150x150",
+      education: doctor.specialization 
+        ? [`MD in ${doctor.specialization}`, `Board Certified in ${doctor.specialization}`] 
+        : [],
+      experience: `${Math.floor(Math.random() * 20) + 5} years`, // Random for demo
+      rating: doctor.feedback_score || 4.5,
+      reviews: doctor.reviews || [],
+      availability: availability
+    };
+  };
+
+  if (loading) return (
+    <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="text-xl">Loading doctors...</div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen p-6 flex items-center justify-center text-red-500">
+      <div className="text-xl">Error: {error}</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--primary-bg)' }}>
@@ -153,40 +213,46 @@ export default function DoctorsPage() {
         <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--primary-dark-blue)' }}>Our Doctors</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {doctors.map((doctor) => (
-            <div 
-              key={doctor.id} 
-              className="doctor-card"
-              onClick={() => handleDoctorClick(doctor)}
-            >
-              <div className="flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full overflow-hidden mb-4">
-                  <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover" />
-                </div>
-                <h2 className="text-xl font-semibold" style={{ color: 'var(--primary-dark-blue)' }}>{doctor.name}</h2>
-                <p style={{ color: 'var(--primary-blue)' }}>{doctor.specialization}</p>
-                <div className="flex items-center mt-2">
-                  <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                  <span className="ml-1">{doctor.rating}</span>
-                </div>
-                <div className="mt-4 w-full">
-                  <div className="flex items-center mb-1">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span className="text-sm">{doctor.availability[0].day}, {doctor.availability[0].slots[0]}</span>
+          {doctors.map((doctor) => {
+            const transformedDoctor = transformDoctorData(doctor);
+            return (
+              <div 
+                key={doctor.doctor_id} 
+                className="doctor-card"
+                onClick={() => handleDoctorClick(transformedDoctor)}
+              >
+                <div className="flex flex-col items-center">
+                  <div className="w-24 h-24 rounded-full overflow-hidden mb-4">
+                    <img src={transformedDoctor.image} alt={transformedDoctor.name} className="w-full h-full object-cover" />
                   </div>
-                  <button 
-                    className="primary-button w-full mt-4"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDoctorClick(doctor);
-                    }}
-                  >
-                    View Profile
-                  </button>
+                  <h2 className="text-xl font-semibold" style={{ color: 'var(--primary-dark-blue)' }}>{transformedDoctor.name}</h2>
+                  <p style={{ color: 'var(--primary-blue)' }}>{transformedDoctor.specialization}</p>
+                  <div className="flex items-center mt-2">
+                    <Star className="w-5 h-5 text-yellow-500 fill-current" />
+                    <span className="ml-1">{transformedDoctor.rating}</span>
+                  </div>
+                  <div className="mt-4 w-full">
+                    <div className="flex items-center mb-1">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      <span className="text-sm">
+                        {transformedDoctor.availability[0]?.day || 'Monday'}, 
+                        {transformedDoctor.availability[0]?.slots[0] || '9:00 AM'}
+                      </span>
+                    </div>
+                    <button 
+                      className="primary-button w-full mt-4"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDoctorClick(transformedDoctor);
+                      }}
+                    >
+                      View Profile
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -260,19 +326,23 @@ export default function DoctorsPage() {
                     <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--primary-dark-blue)' }}>
                       Patient Reviews
                     </h3>
-                    {selectedDoctor.reviews.map((review, idx) => (
-                      <div key={idx} className="mb-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="font-medium">{review.user}</p>
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} />
-                            ))}
+                    {selectedDoctor.reviews.length > 0 ? (
+                      selectedDoctor.reviews.map((review, idx) => (
+                        <div key={idx} className="mb-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="font-medium">{review.patient_name}</p>
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} />
+                              ))}
+                            </div>
                           </div>
+                          <p className="text-sm">{review.comments}</p>
                         </div>
-                        <p className="text-sm">{review.comment}</p>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p>No reviews yet</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -283,7 +353,7 @@ export default function DoctorsPage() {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   <div>
-                    <label className="block mb-1">Full Name</label>
+                    <label className="block mb-1">Full Name*</label>
                     <input
                       type="text"
                       name="name"
@@ -295,7 +365,7 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div>
-                    <label className="block mb-1">Age</label>
+                    <label className="block mb-1">Age*</label>
                     <input
                       type="number"
                       name="age"
@@ -303,11 +373,13 @@ export default function DoctorsPage() {
                       onChange={handleInputChange}
                       className="neumorphic-input"
                       required
+                      min="1"
+                      max="120"
                     />
                   </div>
                   
                   <div>
-                    <label className="block mb-1">Email</label>
+                    <label className="block mb-1">Email*</label>
                     <input
                       type="email"
                       name="email"
@@ -319,7 +391,7 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div>
-                    <label className="block mb-1">Phone Number</label>
+                    <label className="block mb-1">Phone Number*</label>
                     <input
                       type="tel"
                       name="phone"
@@ -331,7 +403,7 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div>
-                    <label className="block mb-1">Preferred Date</label>
+                    <label className="block mb-1">Preferred Date*</label>
                     <input
                       type="date"
                       name="date"
@@ -339,11 +411,12 @@ export default function DoctorsPage() {
                       onChange={handleInputChange}
                       className="neumorphic-input"
                       required
+                      min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   
                   <div>
-                    <label className="block mb-1">Preferred Time</label>
+                    <label className="block mb-1">Preferred Time*</label>
                     <select
                       name="time"
                       value={formData.time}
@@ -363,7 +436,7 @@ export default function DoctorsPage() {
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label className="block mb-1">Reason for Visit</label>
+                    <label className="block mb-1">Reason for Visit*</label>
                     <textarea
                       name="reason"
                       value={formData.reason}
@@ -380,6 +453,7 @@ export default function DoctorsPage() {
                       onClick={() => setShowBookingForm(false)}
                       className="px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
                       style={{ backgroundColor: 'var(--shadow-dark)' }}
+                      disabled={isSubmitting}
                     >
                       Back
                     </button>
@@ -387,8 +461,9 @@ export default function DoctorsPage() {
                       type="button"
                       onClick={handleSubmit}
                       className="primary-button"
+                      disabled={isSubmitting}
                     >
-                      Confirm Booking
+                      {isSubmitting ? 'Booking...' : 'Confirm Booking'}
                     </button>
                   </div>
                 </div>
