@@ -13,7 +13,9 @@ const pharmacyRoutes = require('./routes/pharmacy_routes');
 const labRoutes = require('./routes/lab_routes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const appoint_patient_routes=require('./routes/app_pateint_router');
 
+app.use('/api/appoint_patients',appoint_patient_routes);
 app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/doctors', doctorRoutes);

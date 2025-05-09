@@ -16,6 +16,7 @@ const createAppointment = async (req, res) => {
         request.input('appointment_date', sql.DateTime, appointment_date);
         request.input('status', sql.VarChar(20), 'Scheduled');
         
+        // Create appointment
         const result = await request.query(`
             INSERT INTO Appointments (
                 patient_id, doctor_id, appointment_date, status
@@ -28,11 +29,21 @@ const createAppointment = async (req, res) => {
         
         const appointmentId = result.recordset[0].appointment_id;
         
-        // Create feedback placeholder
-        await request.query(`
-            INSERT INTO Feedback (appointment_id, patient_id)
-            VALUES (@appointmentId, @patient_id)
-        `, { appointmentId });
+        // Create feedback record (without rating)
+        const feedbackRequest = new sql.Request();
+        feedbackRequest.input('patient_id', sql.Int, patient_id);
+        feedbackRequest.input('comments', sql.Text, reason || '');
+        
+        await feedbackRequest.query(`
+            INSERT INTO Feedback (
+                patient_id,
+                comments
+            )
+            VALUES (
+                @patient_id,
+                @comments
+            )
+        `);
         
         res.status(201).json({ 
             message: 'Appointment created successfully',
@@ -59,12 +70,10 @@ const getAppointmentsByDoctor = async (req, res) => {
                 p.full_name as patient_name,
                 a.appointment_date,
                 a.status,
-                f.feedback_id,
-                f.comments,
-                f.rating
+                f.comments
             FROM Appointments a
             JOIN Patients p ON a.patient_id = p.patient_id
-            LEFT JOIN Feedback f ON a.appointment_id = f.appointment_id
+            LEFT JOIN Feedback f ON a.patient_id = f.patient_id
             WHERE a.doctor_id = @doctorId
             ORDER BY a.appointment_date DESC
         `);
@@ -92,13 +101,11 @@ const getAppointmentsByPatient = async (req, res) => {
                 d.specialization,
                 a.appointment_date,
                 a.status,
-                f.feedback_id,
-                f.comments,
-                f.rating
+                f.comments
             FROM Appointments a
             JOIN Doctors d ON a.doctor_id = d.doctor_id
             JOIN Users u ON d.user_id = u.user_id
-            LEFT JOIN Feedback f ON a.appointment_id = f.appointment_id
+            LEFT JOIN Feedback f ON a.patient_id = f.patient_id
             WHERE a.patient_id = @patientId
             ORDER BY a.appointment_date DESC
         `);
@@ -135,36 +142,19 @@ const updateAppointmentStatus = async (req, res) => {
 
 // Submit feedback for appointment
 const submitFeedback = async (req, res) => {
-    const { id } = req.params;
-    const { comments, rating } = req.body;
+    const { patientId } = req.params;
+    const { comments } = req.body;
     
     try {
         const request = new sql.Request();
-        request.input('id', sql.Int, id);
+        request.input('patient_id', sql.Int, patientId);
         request.input('comments', sql.Text, comments);
-        request.input('rating', sql.Float, rating);
         
         await request.query(`
             UPDATE Feedback
             SET comments = @comments,
-                rating = @rating,
                 submitted_date = GETDATE()
-            WHERE appointment_id = @id
-        `);
-        
-        // Update doctor's feedback score
-        await request.query(`
-            UPDATE d
-            SET d.feedback_score = (
-                SELECT AVG(CAST(f.rating AS FLOAT))
-                FROM Feedback f
-                JOIN Appointments a ON f.appointment_id = a.appointment_id
-                WHERE a.doctor_id = d.doctor_id
-                AND f.rating IS NOT NULL
-            )
-            FROM Doctors d
-            JOIN Appointments a ON d.doctor_id = a.doctor_id
-            WHERE a.appointment_id = @id
+            WHERE patient_id = @patient_id
         `);
         
         res.json({ message: 'Feedback submitted successfully' });

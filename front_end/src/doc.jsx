@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Calendar, Star, X } from "lucide-react";
-import api from './api'; // Custom axios instance
+import { Calendar, Star, X, Search, User } from "lucide-react";
+import api from './api';
 import './doc.css';
 
 export default function DoctorsPage() {
@@ -10,6 +10,11 @@ export default function DoctorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showPatientSearch, setShowPatientSearch] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -20,13 +25,14 @@ export default function DoctorsPage() {
     reason: ""
   });
 
-  // Fetch doctors from backend
+  // Fetch doctors and patients when component mounts
   useEffect(() => {
-    const fetchDoctors = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get('/api/doctors');
+        // Fetch doctors
+        const doctorsResponse = await api.get('/api/doctors');
         const doctorsWithDetails = await Promise.all(
-          response.data.map(async doctor => {
+          doctorsResponse.data.map(async doctor => {
             try {
               const reviewsResponse = await api.get(`/api/doctors/${doctor.doctor_id}/reviews`);
               return {
@@ -43,6 +49,10 @@ export default function DoctorsPage() {
           })
         );
         setDoctors(doctorsWithDetails);
+
+        // Fetch patients - UPDATED ENDPOINT
+        const patientsResponse = await api.get('/api/appoint_patients');
+        setPatients(patientsResponse.data);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -50,17 +60,40 @@ export default function DoctorsPage() {
       }
     };
 
-    fetchDoctors();
+    fetchData();
   }, []);
+
+  // Search patients by name - UPDATED ENDPOINT
+  const searchPatients = async () => {
+    try {
+      const response = await api.get('/api/appoint_patients/search', {
+        params: { name: searchTerm }
+      });
+      setPatients(response.data);
+    } catch (err) {
+      console.error('Error searching patients:', err);
+    }
+  };
 
   const handleDoctorClick = (doctor) => {
     setSelectedDoctor(doctor);
     setShowBookingForm(false);
+    setSelectedPatient(null);
+    setFormData({
+      name: "",
+      age: "",
+      email: "",
+      phone: "",
+      date: "",
+      time: "",
+      reason: ""
+    });
   };
 
   const handleClose = () => {
     setSelectedDoctor(null);
     setShowBookingForm(false);
+    setSelectedPatient(null);
   };
 
   const handleBookingClick = () => {
@@ -73,6 +106,31 @@ export default function DoctorsPage() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handle patient selection
+  const handlePatientSelect = (patient) => {
+    setSelectedPatient(patient);
+    setFormData(prev => ({
+      ...prev,
+      name: patient.full_name,
+      email: patient.contact_info.split(',')[0]?.trim() || '',
+      phone: patient.contact_info.split(',')[1]?.trim() || '',
+      age: calculateAge(patient.date_of_birth)
+    }));
+    setShowPatientSearch(false);
+  };
+
+  // Calculate age from date of birth
+  const calculateAge = (dob) => {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age.toString();
   };
 
   const validateForm = () => {
@@ -101,17 +159,23 @@ export default function DoctorsPage() {
     
     setIsSubmitting(true);
     try {
-      // 1. Create patient
-      const patientResponse = await api.post('/api/patients', {
-        full_name: formData.name,
-        date_of_birth: new Date(new Date().getFullYear() - formData.age, 0, 1),
-        gender: '', // Add gender field to form if needed
-        contact_info: `${formData.email}, ${formData.phone}`
-      });
+      let patientId;
+      
+      if (selectedPatient) {
+        // Use existing patient
+        patientId = selectedPatient.patient_id;
+      } else {
+        // Create new patient - UPDATED ENDPOINT
+        const patientResponse = await api.post('/api/appoint_patients', {
+          full_name: formData.name,
+          date_of_birth: new Date(new Date().getFullYear() - formData.age, 0, 1),
+          gender: '',
+          contact_info: `${formData.email}, ${formData.phone}`
+        });
+        patientId = patientResponse.data.patient_id;
+      }
 
-      const patientId = patientResponse.data.patient_id;
-
-      // 2. Parse date and time
+      // Parse date and time
       const [day, time] = formData.time.split(', ');
       const [hours, period] = time.split(' ');
       let [hour, minute] = hours.split(':').map(Number);
@@ -122,7 +186,7 @@ export default function DoctorsPage() {
       const appointmentDate = new Date(formData.date);
       appointmentDate.setHours(hour, minute || 0);
 
-      // 3. Create appointment
+      // Create appointment
       const appointmentResponse = await api.post('/api/appointments', {
         patient_id: patientId,
         doctor_id: selectedDoctor.doctor_id,
@@ -130,7 +194,7 @@ export default function DoctorsPage() {
         status: 'Scheduled'
       });
 
-      // 4. Create feedback placeholder
+      // Create feedback placeholder
       await api.post('/api/appointments/feedback', {
         appointment_id: appointmentResponse.data.appointment_id,
         patient_id: patientId,
@@ -140,6 +204,7 @@ export default function DoctorsPage() {
       alert(`Appointment booked with ${selectedDoctor.full_name}!`);
       setSelectedDoctor(null);
       setShowBookingForm(false);
+      setSelectedPatient(null);
       setFormData({
         name: "",
         age: "",
@@ -188,7 +253,7 @@ export default function DoctorsPage() {
       education: doctor.specialization 
         ? [`MD in ${doctor.specialization}`, `Board Certified in ${doctor.specialization}`] 
         : [],
-      experience: `${Math.floor(Math.random() * 20) + 5} years`, // Random for demo
+      experience: `${Math.floor(Math.random() * 20) + 5} years`,
       rating: doctor.feedback_score || 4.5,
       reviews: doctor.reviews || [],
       availability: availability
@@ -351,56 +416,138 @@ export default function DoctorsPage() {
                 <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--primary-dark-blue)' }}>
                   Book Appointment with {selectedDoctor.name}
                 </h2>
+                
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-medium">Select Patient*</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPatientSearch(!showPatientSearch)}
+                      className="text-sm primary-button py-1 px-3"
+                    >
+                      {showPatientSearch ? 'Hide Search' : 'Search Patients'}
+                    </button>
+                  </div>
+                  
+                  {showPatientSearch && (
+                    <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
+                      <div className="flex items-center mb-3">
+                        <input
+                          type="text"
+                          placeholder="Search patients by name"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="neumorphic-input flex-1"
+                        />
+                        <button
+                          onClick={searchPatients}
+                          className="ml-2 primary-button py-2 px-4"
+                        >
+                          <Search className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="max-h-60 overflow-y-auto">
+                        {patients.length > 0 ? (
+                          patients.map(patient => (
+                            <div 
+                              key={patient.patient_id}
+                              onClick={() => handlePatientSelect(patient)}
+                              className={`p-2 mb-1 rounded cursor-pointer hover:bg-blue-50 ${selectedPatient?.patient_id === patient.patient_id ? 'bg-blue-100' : ''}`}
+                            >
+                              <div className="flex items-center">
+                                <User className="w-4 h-4 mr-2" />
+                                <span>{patient.full_name}</span>
+                              </div>
+                              <div className="text-sm text-gray-600 ml-6">
+                                {patient.contact_info}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-center py-2">No patients found</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedPatient && (
+                    <div className="p-3 rounded-lg mb-4" style={{ backgroundColor: 'var(--primary-light-blue)' }}>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{selectedPatient.full_name}</p>
+                          <p className="text-sm">{selectedPatient.contact_info}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedPatient(null);
+                            setFormData(prev => ({
+                              ...prev,
+                              name: "",
+                              age: "",
+                              email: "",
+                              phone: ""
+                            }));
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  <div>
-                    <label className="block mb-1">Full Name*</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="neumorphic-input"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Age*</label>
-                    <input
-                      type="number"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleInputChange}
-                      className="neumorphic-input"
-                      required
-                      min="1"
-                      max="120"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Email*</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="neumorphic-input"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Phone Number*</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className="neumorphic-input"
-                      required
-                    />
-                  </div>
+  <div>
+    <label className="block mb-1">Full Name*</label>
+    <input
+      type="text"
+      name="name"
+      value={formData.name}
+      onChange={handleInputChange}
+      className="neumorphic-input"
+      required
+    />
+  </div>
+  
+  <div>
+    <label className="block mb-1">Age*</label>
+    <input
+      type="number"
+      name="age"
+      value={formData.age}
+      onChange={handleInputChange}
+      className="neumorphic-input"
+      required
+      min="1"
+      max="120"
+    />
+  </div>
+  
+  <div>
+    <label className="block mb-1">Email*</label>
+    <input
+      type="email"
+      name="email"
+      value={formData.email}
+      onChange={handleInputChange}
+      className="neumorphic-input"
+      required
+    />
+  </div>
+  
+  <div>
+    <label className="block mb-1">Phone Number*</label>
+    <input
+      type="tel"
+      name="phone"
+      value={formData.phone}
+      onChange={handleInputChange}
+      className="neumorphic-input"
+      required
+    />
+  </div>
                   
                   <div>
                     <label className="block mb-1">Preferred Date*</label>
