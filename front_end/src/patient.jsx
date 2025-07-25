@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import './Patient.css';
+import { Search, Plus, Trash2, ArrowLeft, Edit, FileText, Activity, Users } from 'lucide-react';
+import Layout from './components/Layout/Layout';
+import Card from './components/UI/Card';
+import Button from './components/UI/Button';
+import Input from './components/UI/Input';
+import Modal from './components/UI/Modal';
+import StatCard from './components/UI/StatCard';
+import useStore from './store/useStore';
 
 const Patient = () => {
-  // Sample patient data
-  const [patients, setPatients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [totalPatients, setTotalPatients] = useState(0);
-  const [admittedToday, setAdmittedToday] = useState(0);
-  const [criticalCount, setCriticalCount] = useState(0);
-  const [showAddPatientModal, setShowAddPatientModal] = useState(false);
-  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
-  const [patientToRemove, setPatientToRemove] = useState(null);
+  const { 
+    patients, 
+    setPatients, 
+    resetPatients,
+    addNotification 
+  } = useStore();
+  
+  const [localPatients, setLocalPatients] = useState([]);
   const [newPatient, setNewPatient] = useState({
     name: '',
     age: '',
@@ -23,12 +28,14 @@ const Patient = () => {
     bloodType: '',
     allergies: ''
   });
+  
   useEffect(() => {
     fetch('http://localhost:5000/api/patients')
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            setPatients(data);
+            setLocalPatients(data);
+            setPatients({ list: data });
             console.log("✅ Patients loaded:", data);
           } else {
             console.error("❌ Unexpected response:", data);
@@ -44,21 +51,21 @@ const Patient = () => {
     fetch("http://localhost:5000/api/patients/stats/total")
         .then((res) => res.json())
         .then((data) => {
-          setTotalPatients(data.total);
+          setPatients({ totalPatients: data.total });
         })
         .catch((err) => console.error("Error fetching total patients:", err));
 
     fetch("http://localhost:5000/api/patients/stats/today")
         .then((res) => res.json())
         .then((data) => {
-          setAdmittedToday(data.admittedToday);
+          setPatients({ admittedToday: data.admittedToday });
         })
         .catch((err) => console.error("Error fetching today's admitted patients:", err));
 
     fetch("http://localhost:5000/api/patients/stats/critical")
         .then((res) => res.json())
         .then((data) => {
-          setCriticalCount(data.criticalCount);
+          setPatients({ criticalCount: data.criticalCount });
         })
         .catch((err) => console.error("Error fetching critical patients:", err));
   }, []);
@@ -69,7 +76,7 @@ const Patient = () => {
         .then(response => response.json())
         .then(data => {
           console.log('API response:', data);
-          setTotalPatients(data.total);
+          setPatients({ totalPatients: data.total });
         })
         .catch(error => {
           console.error('Error fetching total patients:', error);
@@ -77,30 +84,23 @@ const Patient = () => {
   }, []);
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    setPatients({ searchTerm: e.target.value });
   };
 
   const handlePatientClick = (patient) => {
-    setSelectedPatient(patient);
+    setPatients({ selectedPatient: patient });
   };
 
   const handleBackToList = () => {
-    setSelectedPatient(null);
-  };
-  
-  const handleBackToDashboard = () => {
-    // This would typically use router navigation
-    // For now, we'll just log the action
-    console.log('Navigating back to dashboard');
-    // Example if using react-router: history.push('/dashboard')
+    setPatients({ selectedPatient: null });
   };
 
   const handleAddPatient = () => {
-    setShowAddPatientModal(true);
+    setPatients({ showAddModal: true });
   };
 
   const handleCloseAddModal = () => {
-    setShowAddPatientModal(false);
+    setPatients({ showAddModal: false });
     // Reset the form
     setNewPatient({
       name: '',
@@ -116,18 +116,27 @@ const Patient = () => {
   };
 
   const handleRemovePatient = (patient) => {
-    setPatientToRemove(patient);
-    setShowRemoveConfirmModal(true);
+    setPatients({ 
+      patientToRemove: patient,
+      showRemoveModal: true 
+    });
   };
 
   const confirmRemovePatient = () => {
-    setPatients(patients.filter(patient => patient.id !== patientToRemove.id));
-    setShowRemoveConfirmModal(false);
-    setPatientToRemove(null);
+    const updatedPatients = localPatients.filter(patient => patient.id !== patients.patientToRemove.id);
+    setLocalPatients(updatedPatients);
+    setPatients({ 
+      list: updatedPatients,
+      showRemoveModal: false,
+      patientToRemove: null,
+      selectedPatient: patients.selectedPatient?.id === patients.patientToRemove?.id ? null : patients.selectedPatient
+    });
     // If we're removing the currently selected patient, go back to the list
-    if (selectedPatient && selectedPatient.id === patientToRemove.id) {
-      setSelectedPatient(null);
-    }
+    addNotification({
+      type: 'success',
+      title: 'Patient Removed',
+      message: 'Patient has been successfully removed from the system.'
+    });
   };
 
   const handleNewPatientChange = (e) => {
@@ -140,44 +149,28 @@ const Patient = () => {
 
   const handleSubmitNewPatient = (e) => {
     e.preventDefault();
-    const newId = Math.max(...patients.map(p => p.id)) + 1;
+    const newId = Math.max(...localPatients.map(p => p.id || 0)) + 1;
     const patientToAdd = {
       ...newPatient,
       id: newId,
       age: parseInt(newPatient.age, 10) || 0
     };
     
-    setPatients([...patients, patientToAdd]);
+    const updatedPatients = [...localPatients, patientToAdd];
+    setLocalPatients(updatedPatients);
+    setPatients({ list: updatedPatients });
     handleCloseAddModal();
+    addNotification({
+      type: 'success',
+      title: 'Patient Added',
+      message: 'New patient has been successfully added to the system.'
+    });
   };
   
-  // Icon for back button
-  const BackIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 12H5M12 19l-7-7 7-7"/>
-    </svg>
-  );
-
-  // Icon for add button
-  const AddIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-  );
-
-  // Icon for remove button
-  const TrashIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"></polyline>
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-    </svg>
-  );
-
-  const filteredPatients = patients.filter(patient =>
-      (patient.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (patient.diagnosis?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (patient.room || '').includes(searchTerm)
+  const filteredPatients = localPatients.filter(patient =>
+      (patient.full_name?.toLowerCase() || '').includes(patients.searchTerm.toLowerCase()) ||
+      (patient.diagnosis?.toLowerCase() || '').includes(patients.searchTerm.toLowerCase()) ||
+      (patient.room || '').includes(patients.searchTerm)
   );
 
   const getStatusClass = (status) => {
@@ -190,367 +183,353 @@ const Patient = () => {
   };
 
   return (
-    <div className="patient-container">
-      <div className="patient-header">
-        <div className="header-left">
-          <button className="back-button dashboard-back" onClick={handleBackToDashboard} title="Back to Dashboard">
-            <BackIcon />
-          </button>
-          <h1>Patient Management</h1>
-        </div>
-        <div className="header-actions">
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search patients..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="search-input"
-            />
-          </div>
-          <button className="add-patient-button" onClick={handleAddPatient} title="Add New Patient">
-            <AddIcon />
-            <span>Add Patient</span>
-          </button>
-        </div>
-      </div>
-
-      {!selectedPatient ? (
-          <>
-            <div className="patient-stats">
-              <div className="stat-card">
-                <h3>Total Patients</h3>
-                <p className="stat-number">{totalPatients}</p>
-              </div>
-              <div className="stat-card">
-                <h3>Admitted Today</h3>
-                <p className="stat-number">{admittedToday}</p>
-              </div>
-              <div className="stat-card">
-                <h3>Critical Condition</h3>
-                <p className="stat-number">{criticalCount}</p>
-              </div>
+    <Layout title="Patient Management" subtitle="Manage patient records and information">
+      <div className="p-6">
+        {!patients.selectedPatient ? (
+          <div className="space-y-6">
+            {/* Header Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <Input
+                placeholder="Search patients..."
+                value={patients.searchTerm}
+                onChange={handleSearchChange}
+                icon={Search}
+                className="w-full sm:w-80"
+              />
+              <Button
+                onClick={handleAddPatient}
+                icon={Plus}
+                variant="primary"
+              >
+                Add Patient
+              </Button>
             </div>
 
-            <div className="patient-table-container">
-              <table className="patient-table">
-                <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>DOB</th>
-                  <th>Room</th>
-                  <th>Status</th>
-                  <th>Diagnosis</th>
-                  <th>Admitted</th>
-                </tr>
-                </thead>
-                <tbody>
-                {filteredPatients.map((patient) => (
-                    <tr key={patient.id}>
-                      <td onClick={() => handlePatientClick(patient)}>{patient.full_name}</td>
-                      <td onClick={() => handlePatientClick(patient)}>{patient.date_of_birth}</td>
-                      <td onClick={() => handlePatientClick(patient)}>{patient.room}</td>
-                      <td onClick={() => handlePatientClick(patient)}>
-                      <span className={`status-badge ${getStatusClass(patient.status)}`}>
-                        {patient.status}
-                      </span>
-                      </td>
-                      <td onClick={() => handlePatientClick(patient)}>{patient.diagnosis}</td>
-                      <td onClick={() => handlePatientClick(patient)}>{patient.admissionDate}</td>
-                      <td>
-                        <button
-                            className="action-button remove"
-                            onClick={() => handleRemovePatient(patient)}
-                            title="Remove Patient"
-                        >
-                          <TrashIcon/>
-                        </button>
-                      </td>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatCard
+                title="Total Patients"
+                value={patients.totalPatients}
+                icon={Users}
+                color="blue"
+              />
+              <StatCard
+                title="Admitted Today"
+                value={patients.admittedToday}
+                icon={Plus}
+                color="green"
+              />
+              <StatCard
+                title="Critical Condition"
+                value={patients.criticalCount}
+                icon={Activity}
+                color="red"
+              />
+            </div>
+
+            {/* Patients Table */}
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">DOB</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Room</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Diagnosis</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Admitted</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                     </tr>
-                ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  </thead>
+                  <tbody>
+                    {filteredPatients.map((patient) => (
+                      <tr 
+                        key={patient.patient_id || patient.id} 
+                        className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handlePatientClick(patient)}
+                      >
+                        <td className="py-3 px-4 font-medium text-gray-800">
+                          {patient.full_name || patient.name}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {patient.date_of_birth}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {patient.room || 'N/A'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            patient.status === 'Critical' 
+                              ? 'bg-red-100 text-red-800'
+                              : patient.status === 'Stable'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {patient.status || 'Stable'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {patient.diagnosis || 'N/A'}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {patient.admissionDate || patient.registration_date}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={Trash2}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemovePatient(patient);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
       ) : (
-          <div className="patient-detail">
-            <button className="back-button" onClick={handleBackToList} title="Back to Patient List">
-              <BackIcon/>
-            </button>
+          {/* Patient Detail View */}
+          <div className="space-y-6">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                icon={ArrowLeft}
+                onClick={handleBackToList}
+              >
+                Back to List
+              </Button>
+            </div>
 
-            <div className="patient-profile">
-              <div className="profile-header">
-                <div className="profile-name-section">
-                  <h2>{selectedPatient.name}</h2>
-                  <span className={`status-badge ${getStatusClass(selectedPatient.status)}`}>
-                  {selectedPatient.status}
-                </span>
-                </div>
-                <div className="profile-actions">
-                  <button className="action-button edit">Edit Patient</button>
-                <button className="action-button chart">View Chart</button>
-                <button className="action-button remove" onClick={() => handleRemovePatient(selectedPatient)}>
-                  <TrashIcon />
-                  <span>Remove</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="profile-info-cards">
-              <div className="info-card">
-                <h3>Personal Details</h3>
-                <div className="info-row">
-                  <span className="info-label">Age:</span>
-                  <span className="info-value">{selectedPatient.age}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Gender:</span>
-                  <span className="info-value">{selectedPatient.gender}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Room:</span>
-                  <span className="info-value">{selectedPatient.room}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Admitted:</span>
-                  <span className="info-value">{selectedPatient.admissionDate}</span>
-                </div>
-              </div>
-              
-              <div className="info-card">
-                <h3>Medical Information</h3>
-                <div className="info-row">
-                  <span className="info-label">Diagnosis:</span>
-                  <span className="info-value">{selectedPatient.diagnosis}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Blood Type:</span>
-                  <span className="info-value">A+</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Allergies:</span>
-                  <span className="info-value">Penicillin</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="medical-records">
-              <h3>Recent Medical Records</h3>
-              <div className="record-tabs">
-                <button className="tab-button active">Vitals</button>
-                <button className="tab-button">Medications</button>
-                <button className="tab-button">Lab Results</button>
-                <button className="tab-button">Notes</button>
-              </div>
-              
-              <div className="records-content">
-                <div className="vitals-chart">
-                  <h4>Vital Signs - Last 24 Hours</h4>
-                  <div className="chart-placeholder">
-                    {/* Chart would go here in a real implementation */}
-                    <p>Temperature, blood pressure, and heart rate charts would display here.</p>
+            <Card>
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">
+                      {patients.selectedPatient.full_name || patients.selectedPatient.name}
+                    </h2>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                      patients.selectedPatient.status === 'Critical' 
+                        ? 'bg-red-100 text-red-800'
+                        : patients.selectedPatient.status === 'Stable'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {patients.selectedPatient.status || 'Stable'}
+                    </span>
                   </div>
                 </div>
-                
-                <div className="vitals-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Time</th>
-                        <th>Temp</th>
-                        <th>BP</th>
-                        <th>Heart Rate</th>
-                        <th>Resp Rate</th>
-                        <th>O2 Sat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Today 09:00</td>
-                        <td>37.2°C</td>
-                        <td>120/80</td>
-                        <td>72 bpm</td>
-                        <td>16/min</td>
-                        <td>98%</td>
-                      </tr>
-                      <tr>
-                        <td>Today 05:00</td>
-                        <td>37.5°C</td>
-                        <td>124/82</td>
-                        <td>75 bpm</td>
-                        <td>17/min</td>
-                        <td>97%</td>
-                      </tr>
-                      <tr>
-                        <td>Yesterday 21:00</td>
-                        <td>37.8°C</td>
-                        <td>128/84</td>
-                        <td>78 bpm</td>
-                        <td>18/min</td>
-                        <td>96%</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div className="flex space-x-3 mt-4 lg:mt-0">
+                  <Button variant="outline" icon={Edit}>
+                    Edit Patient
+                  </Button>
+                  <Button variant="outline" icon={FileText}>
+                    View Chart
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    icon={Trash2}
+                    onClick={() => handleRemovePatient(patients.selectedPatient)}
+                  >
+                    Remove
+                  </Button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Add Patient Modal */}
-      {showAddPatientModal && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <h2>Add New Patient</h2>
-            <form onSubmit={handleSubmitNewPatient}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label htmlFor="name">Full Name</label>
-                  <input 
-                    type="text" 
-                    id="name" 
-                    name="name" 
-                    value={newPatient.name} 
-                    onChange={handleNewPatientChange}
-                    required
-                  />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Personal Details</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Age:</span>
+                      <span className="font-medium">{patients.selectedPatient.age || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Gender:</span>
+                      <span className="font-medium">{patients.selectedPatient.gender || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Room:</span>
+                      <span className="font-medium">{patients.selectedPatient.room || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Admitted:</span>
+                      <span className="font-medium">
+                        {patients.selectedPatient.admissionDate || patients.selectedPatient.registration_date || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="form-group">
-                  <label htmlFor="age">Age</label>
-                  <input 
-                    type="number" 
-                    id="age" 
-                    name="age" 
-                    value={newPatient.age} 
-                    onChange={handleNewPatientChange}
-                    min="0"
-                    max="120"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="gender">Gender</label>
-                  <select 
-                    id="gender" 
-                    name="gender" 
-                    value={newPatient.gender} 
-                    onChange={handleNewPatientChange}
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="room">Room Number</label>
-                  <input 
-                    type="text" 
-                    id="room" 
-                    name="room" 
-                    value={newPatient.room} 
-                    onChange={handleNewPatientChange}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="status">Status</label>
-                  <select 
-                    id="status" 
-                    name="status" 
-                    value={newPatient.status} 
-                    onChange={handleNewPatientChange}
-                  >
-                    <option value="Stable">Stable</option>
-                    <option value="Improving">Improving</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="diagnosis">Diagnosis</label>
-                  <input 
-                    type="text" 
-                    id="diagnosis" 
-                    name="diagnosis" 
-                    value={newPatient.diagnosis} 
-                    onChange={handleNewPatientChange}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="admissionDate">Admission Date</label>
-                  <input 
-                    type="date" 
-                    id="admissionDate" 
-                    name="admissionDate" 
-                    value={newPatient.admissionDate} 
-                    onChange={handleNewPatientChange}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="bloodType">Blood Type</label>
-                  <select 
-                    id="bloodType" 
-                    name="bloodType" 
-                    value={newPatient.bloodType} 
-                    onChange={handleNewPatientChange}
-                  >
-                    <option value="">Select</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="allergies">Allergies</label>
-                  <input 
-                    type="text" 
-                    id="allergies" 
-                    name="allergies" 
-                    value={newPatient.allergies} 
-                    onChange={handleNewPatientChange}
-                    placeholder="Separate with commas"
-                  />
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Medical Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Diagnosis:</span>
+                      <span className="font-medium">{patients.selectedPatient.diagnosis || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Blood Type:</span>
+                      <span className="font-medium">A+</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Allergies:</span>
+                      <span className="font-medium">Penicillin</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="modal-actions">
-                <button type="button" className="cancel-button" onClick={handleCloseAddModal}>Cancel</button>
-                <button type="submit" className="submit-button">Add Patient</button>
-              </div>
-            </form>
+            </Card>
           </div>
-        </div>
-      )}
-      
-      {/* Remove Confirmation Modal */}
-      {showRemoveConfirmModal && patientToRemove && (
-        <div className="modal-overlay">
-          <div className="modal-card confirm-modal">
-            <h2>Remove Patient</h2>
-            <p>Are you sure you want to remove <strong>{patientToRemove.name}</strong> from the patient list?</p>
-            <div className="modal-actions">
-              <button className="cancel-button" onClick={() => setShowRemoveConfirmModal(false)}>Cancel</button>
-              <button className="delete-button" onClick={confirmRemovePatient}>Remove</button>
+        )}
+
+        {/* Add Patient Modal */}
+        <Modal
+          isOpen={patients.showAddModal}
+          onClose={handleCloseAddModal}
+          title="Add New Patient"
+          size="lg"
+        >
+          <form onSubmit={handleSubmitNewPatient} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Full Name"
+                name="name"
+                value={newPatient.name}
+                onChange={handleNewPatientChange}
+                required
+              />
+              <Input
+                label="Age"
+                name="age"
+                type="number"
+                value={newPatient.age}
+                onChange={handleNewPatientChange}
+                min="0"
+                max="120"
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                <select
+                  name="gender"
+                  value={newPatient.gender}
+                  onChange={handleNewPatientChange}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <Input
+                label="Room Number"
+                name="room"
+                value={newPatient.room}
+                onChange={handleNewPatientChange}
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  name="status"
+                  value={newPatient.status}
+                  onChange={handleNewPatientChange}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Stable">Stable</option>
+                  <option value="Improving">Improving</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <Input
+                label="Diagnosis"
+                name="diagnosis"
+                value={newPatient.diagnosis}
+                onChange={handleNewPatientChange}
+                required
+              />
+              <Input
+                label="Admission Date"
+                name="admissionDate"
+                type="date"
+                value={newPatient.admissionDate}
+                onChange={handleNewPatientChange}
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Blood Type</label>
+                <select
+                  name="bloodType"
+                  value={newPatient.bloodType}
+                  onChange={handleNewPatientChange}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Select</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+              <Input
+                label="Allergies"
+                name="allergies"
+                value={newPatient.allergies}
+                onChange={handleNewPatientChange}
+                placeholder="Separate with commas"
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button type="button" variant="outline" onClick={handleCloseAddModal}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary">
+                Add Patient
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Remove Confirmation Modal */}
+        <Modal
+          isOpen={patients.showRemoveModal}
+          onClose={() => setPatients({ showRemoveModal: false, patientToRemove: null })}
+          title="Remove Patient"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              Are you sure you want to remove{' '}
+              <strong>{patients.patientToRemove?.full_name || patients.patientToRemove?.name}</strong>{' '}
+              from the patient list?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setPatients({ showRemoveModal: false, patientToRemove: null })}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmRemovePatient}>
+                Remove
+              </Button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        </Modal>
+      </div>
+    </Layout>
   );
 };
 
