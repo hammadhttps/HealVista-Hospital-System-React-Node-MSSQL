@@ -5,7 +5,9 @@ const {
   getAppointmentsByDoctor,
   getAppointmentsByPatient,
   updateAppointmentStatus,
-  submitFeedback
+  submitFeedback,
+  getTotalAppointmentsCount,
+  getTotalBillingCount
 } = require('../controller/appointmentController');
 
 // Add these routes
@@ -14,5 +16,7 @@ router.post('/feedback', submitFeedback); // POST /api/appointments/feedback
 router.get('/doctor/:doctorId', getAppointmentsByDoctor);
 router.get('/patient/:patientId', getAppointmentsByPatient);
 router.put('/:id/status', updateAppointmentStatus);
+router.get('/stats/total', getTotalAppointmentsCount);
+router.get('/stats/billing', getTotalBillingCount);
 
 module.exports = router;

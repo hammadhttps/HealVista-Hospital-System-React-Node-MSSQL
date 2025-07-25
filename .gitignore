@@ -1,0 +1,11 @@
+/node_modules
+/back_end/node_modules
+/back_end/.env
+/front_end/.env
+/front_end/node_modules
+/front_end/build
+/front_end/node_modules
+/front_end/.env
+/front_end/build
+/front_end/node_modules
+/front_end/.env

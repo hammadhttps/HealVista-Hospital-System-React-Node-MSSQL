@@ -99,8 +99,19 @@ const getDoctorAvailability = async (req, res) => {
     }
 };
 
+const getTotalDoctorsCount = async (req, res) => {
+  try {
+    const result = await sql.query`SELECT COUNT(*) AS total FROM Doctors`;
+    res.status(200).json({ total: result.recordset[0].total });
+  } catch (err) {
+    console.error('Error fetching total doctor count:', err);
+    res.status(500).json({ error: 'Failed to fetch doctor count' });
+  }
+};
+
 module.exports = {
     getAllDoctors,
     getDoctorById,
-    getDoctorAvailability
+    getDoctorAvailability,
+    getTotalDoctorsCount,
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Search, FileText, Clock, Filter, CheckCircle, X, Download, Printer, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Search, FileText, X, Plus, Edit, Trash2, Download, Printer, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import './lab.css';
 
@@ -9,41 +9,46 @@ export default function Lab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTest, setSelectedTest] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [labTests, setLabTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+  const [formData, setFormData] = useState({
+    patient_id: '',
+    test_name: '',
+    result: ''
+  });
+
   // Fetch lab tests from API
   useEffect(() => {
-    const fetchTests = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`${API_URL}/lab`);
-        setLabTests(response.data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching lab tests:', err);
-        setError('Failed to load lab tests. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchTests();
   }, []);
-  
+
+  const fetchTests = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/lab`);
+      setLabTests(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching lab tests:', err);
+      setError('Failed to load lab tests. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter tests based on search term
   const filteredTests = labTests.filter(test => {
     const matchesSearch = 
       test.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       test.test_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
     return matchesSearch;
   });
 
   const handleViewTest = async (test) => {
     try {
-      // Fetch detailed test info
       const response = await axios.get(`${API_URL}/lab/${test.test_id}`);
       setSelectedTest(response.data);
       setShowModal(true);
@@ -53,16 +58,81 @@ export default function Lab() {
     }
   };
 
+  const handleEditTest = (test) => {
+    setSelectedTest(test);
+    setFormData({
+      patient_id: test.patient_id,
+      test_name: test.test_name,
+      result: test.result || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleAddTest = () => {
+    setFormData({
+      patient_id: '',
+      test_name: '',
+      result: ''
+    });
+    setShowAddModal(true);
+  };
+
+  const handleDeleteTest = (test) => {
+    setSelectedTest(test);
+    setShowDeleteModal(true);
+  };
+
   const closeModal = () => {
     setShowModal(false);
+    setShowAddModal(false);
+    setShowDeleteModal(false);
     setSelectedTest(null);
   };
-  
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (selectedTest) {
+        // Update existing test
+        await axios.put(`${API_URL}/lab/${selectedTest.test_id}`, formData);
+        alert('Test updated successfully');
+      } else {
+        // Create new test
+        await axios.post(`${API_URL}/lab`, formData);
+        alert('Test added successfully');
+      }
+      fetchTests();
+      closeModal();
+    } catch (err) {
+      console.error('Error saving test:', err);
+      alert('Failed to save test. Please try again.');
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`${API_URL}/lab/${selectedTest.test_id}`);
+      alert('Test deleted successfully');
+      fetchTests();
+      closeModal();
+    } catch (err) {
+      console.error('Error deleting test:', err);
+      alert('Failed to delete test. Please try again.');
+    }
+  };
+
   const handleRequestRetest = async () => {
     if (!selectedTest) return;
     
     try {
-      // Create a new test based on the current one
       const retestData = {
         patient_id: selectedTest.patient_id,
         test_name: selectedTest.test_name,
@@ -70,11 +140,7 @@ export default function Lab() {
       };
       
       await axios.post(`${API_URL}/lab`, retestData);
-      
-      // Refresh the tests list
-      const response = await axios.get(`${API_URL}/lab`);
-      setLabTests(response.data);
-      
+      fetchTests();
       closeModal();
       alert('Retest has been requested successfully');
     } catch (err) {
@@ -83,26 +149,21 @@ export default function Lab() {
     }
   };
 
-  // Calculate patient age from date of birth
+  // Helper functions
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return 'N/A';
-    
     const dob = new Date(dateOfBirth);
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
-    
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
       age--;
     }
-    
     return age;
   };
 
-  // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -115,7 +176,7 @@ export default function Lab() {
     <div className="lab-container">
       <div className="lab-header">
         <div className="back-button-container">
-          <button className="back-button" onClick={() => console.log('Navigate back to dashboard')}>
+          <button className="back-button">
             <ArrowLeft size={20} />
             <span>Back to Dashboard</span>
           </button>
@@ -135,15 +196,10 @@ export default function Lab() {
           />
         </div>
         
-        <div className="lab-stats">
-          <div className="stat-card">
-            <FileText size={18} />
-            <div className="stat-content">
-              <h3>Total Tests</h3>
-              <p>{labTests.length}</p>
-            </div>
-          </div>
-        </div>
+        <button className="add-test-btn" onClick={handleAddTest}>
+          <Plus size={18} />
+          <span>Add New Test</span>
+        </button>
       </div>
 
       <div className="lab-tests-container">
@@ -172,8 +228,16 @@ export default function Lab() {
                     <td>{test.test_name}</td>
                     <td>{formatDate(test.test_date)}</td>
                     <td>{test.result || 'Pending'}</td>
-                    <td>
-                      <button className="view-btn" onClick={() => handleViewTest(test)}>View</button>
+                    <td className="actions-cell">
+                      <button className="action-btn view-btn" onClick={() => handleViewTest(test)}>
+                        <FileText size={16} />
+                      </button>
+                      <button className="action-btn edit-btn" onClick={() => handleEditTest(test)}>
+                        <Edit size={16} />
+                      </button>
+                      <button className="action-btn delete-btn" onClick={() => handleDeleteTest(test)}>
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -192,91 +256,148 @@ export default function Lab() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>Test Details</h2>
+              <h2>{selectedTest.test_id ? 'Edit Test' : 'Test Details'}</h2>
+              <button className="close-btn" onClick={closeModal}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Patient ID</label>
+                  <input
+                    type="text"
+                    name="patient_id"
+                    value={formData.patient_id}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Test Name</label>
+                  <input
+                    type="text"
+                    name="test_name"
+                    value={formData.test_name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Result</label>
+                  <textarea
+                    name="result"
+                    value={formData.result}
+                    onChange={handleInputChange}
+                    rows="4"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="submit" className="action-btn save-btn">
+                  Save Changes
+                </button>
+                <button type="button" className="action-btn retest-btn" onClick={handleRequestRetest}>
+                  <RefreshCw size={16} /> Request Retest
+                </button>
+                <button type="button" className="action-btn close-btn" onClick={closeModal}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Test Modal */}
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Add New Test</h2>
+              <button className="close-btn" onClick={closeModal}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Patient ID</label>
+                  <input
+                    type="text"
+                    name="patient_id"
+                    value={formData.patient_id}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Test Name</label>
+                  <input
+                    type="text"
+                    name="test_name"
+                    value={formData.test_name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Result (optional)</label>
+                  <textarea
+                    name="result"
+                    value={formData.result}
+                    onChange={handleInputChange}
+                    rows="4"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="submit" className="action-btn save-btn">
+                  Add Test
+                </button>
+                <button type="button" className="action-btn close-btn" onClick={closeModal}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedTest && (
+        <div className="modal-overlay">
+          <div className="modal-content delete-modal">
+            <div className="modal-header">
+              <h2>Confirm Deletion</h2>
               <button className="close-btn" onClick={closeModal}>
                 <X size={20} />
               </button>
             </div>
             
             <div className="modal-body">
-              {/* Patient Information Section */}
-              <div className="detail-section">
-                <h3 className="section-title">
-                  <span className="section-icon">🧑‍⚕️</span> Patient Information
-                </h3>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <span className="detail-label">Patient Name:</span>
-                    <span className="detail-value">{selectedTest.patientName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Patient ID:</span>
-                    <span className="detail-value">{selectedTest.patient_id}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Age:</span>
-                    <span className="detail-value">{calculateAge(selectedTest.date_of_birth)} years</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Gender:</span>
-                    <span className="detail-value">{selectedTest.gender}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Contact Info:</span>
-                    <span className="detail-value">{selectedTest.contact_info}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Registration Date:</span>
-                    <span className="detail-value">{formatDate(selectedTest.registration_date)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Test Details Section */}
-              <div className="detail-section">
-                <h3 className="section-title">
-                  <span className="section-icon">🧪</span> Test Details
-                </h3>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <span className="detail-label">Test ID:</span>
-                    <span className="detail-value">#{selectedTest.test_id}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Test Name:</span>
-                    <span className="detail-value">{selectedTest.test_name}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Test Date:</span>
-                    <span className="detail-value">{formatDate(selectedTest.test_date)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Result Section */}
-              <div className="detail-section">
-                <h3 className="section-title">
-                  <span className="section-icon">📊</span> Test Result
-                </h3>
-                <div className="results-box">
-                  <pre className="result-content">{selectedTest.result || 'No results available yet'}</pre>
-                </div>
+              <p>Are you sure you want to delete this test?</p>
+              <div className="test-info">
+                <p><strong>Test ID:</strong> #{selectedTest.test_id}</p>
+                <p><strong>Patient:</strong> {selectedTest.patientName}</p>
+                <p><strong>Test Name:</strong> {selectedTest.test_name}</p>
               </div>
             </div>
 
-            {/* Actions Footer */}
             <div className="modal-footer">
-              <button className="action-btn print-btn">
-                <Printer size={16} /> Print
+              <button className="action-btn delete-confirm-btn" onClick={confirmDelete}>
+                Delete
               </button>
-              <button 
-                className="action-btn retest-btn"
-                onClick={handleRequestRetest}
-              >
-                <RefreshCw size={16} /> Request Retest
-              </button>
-              <button className="action-btn close-btn-text" onClick={closeModal}>
-                Close
+              <button className="action-btn close-btn" onClick={closeModal}>
+                Cancel
               </button>
             </div>
           </div>

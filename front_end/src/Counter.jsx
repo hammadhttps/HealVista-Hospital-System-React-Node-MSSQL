@@ -1,29 +1,58 @@
 import React, { useState } from "react";
+import api from "./api";
+import { useNavigate } from "react-router-dom";
 import "./file.css";
 
 export default function NeumorphicLogin() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await api.post("/api/users/login", { username, password });
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      if (res.data.user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
+    }
+  };
 
   return (
-    <div className={`neu-container ${isSignUp ? "sign-up-mode" : ""}`}>
-      <div className="neu-card login">
-        <h2>Welcome Back</h2>
-        <label>Email</label>
-        <input type="email" placeholder="Enter your email" />
+    <div className="neu-container">
+      <form className="neu-card login" onSubmit={handleLogin}>
+        <h2>Login</h2>
+        <label>Username</label>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Enter your username"
+          required
+        />
         <label>Password</label>
-        <input type="password" placeholder="Enter your password" />
-        <button className="neu-btn">Log In</button>
-        <p className="forgot">Forgot password?</p>
-    
-      </div>
-
-      <div className="neu-card signup">
-        <h2>New Here?</h2>
-        <p>Sign up and discover a great amount of new opportunities!</p>
-        <button className="neu-btn outline" onClick={() => setIsSignUp(!isSignUp)}>
-          {isSignUp ? "Back to Login" : "Sign Up"}
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
+          required
+        />
+        {error && <div style={{ color: "red", marginBottom: 10 }}>{error}</div>}
+        <button className="neu-btn" type="submit">
+          Log In
         </button>
-      </div>
+      </form>
     </div>
   );
 }

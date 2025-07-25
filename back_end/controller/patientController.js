@@ -1,5 +1,6 @@
 const sql = require('mssql');
 
+
 // Get total number of patients
 exports.getTotalPatientsCount = async (req, res) => {
     try {

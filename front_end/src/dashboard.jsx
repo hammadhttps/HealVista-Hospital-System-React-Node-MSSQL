@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  PieChart, Pie, Cell, BarChart, Bar, 
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+import {
+  PieChart, Pie, Cell, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { 
-  Activity, Users, Truck, DollarSign, 
+import {
+  Activity, Users, Truck, DollarSign,
   Package, FileText, Calendar, Clock
 } from 'lucide-react';
 import './dashboard.css';
@@ -51,7 +51,13 @@ const AMBU_COLORS = ['#10b981', '#f59e0b'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  
+  // Redirect admin to admin dashboard
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user.role === 'admin') {
+    navigate('/admin');
+    return null;
+  }
+
   // Custom tooltip styles for charts
   const customTooltipStyle = {
     background: 'var(--bg-color)',
@@ -63,7 +69,7 @@ export default function Dashboard() {
 
   // Helper function to get status badge class based on status
   const getStatusBadgeClass = (status) => {
-    switch(status) {
+    switch (status) {
       case 'Processing': return 'status-badge yellow';
       case 'Pending': return 'status-badge blue';
       case 'Completed': return 'status-badge green';
@@ -99,9 +105,9 @@ export default function Dashboard() {
 
       {/* Dashboard Grid */}
       <div className="dashboard-grid">
-        
+
         {/* Patients Card */}
-        <div 
+        <div
           className="neumorphic-card patients-card"
           onClick={() => navigate('/patient')}
         >
@@ -126,7 +132,7 @@ export default function Dashboard() {
         </div>
 
         {/* Ward Status Card */}
-        <div 
+        <div
           className="neumorphic-card ward-card"
           onClick={() => navigate('/ward')}
         >
@@ -153,9 +159,9 @@ export default function Dashboard() {
                   endAngle={-270}
                 >
                   {wardData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={WARD_COLORS[index % WARD_COLORS.length]} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={WARD_COLORS[index % WARD_COLORS.length]}
                       stroke="none"
                     />
                   ))}
@@ -171,7 +177,7 @@ export default function Dashboard() {
         </div>
 
         {/* Ambulance Tracking Card */}
-        <div 
+        <div
           className="neumorphic-card ambu-card"
           onClick={() => navigate('/ambu')}
         >
@@ -196,9 +202,9 @@ export default function Dashboard() {
                   endAngle={-270}
                 >
                   {ambulanceData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={AMBU_COLORS[index % AMBU_COLORS.length]} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={AMBU_COLORS[index % AMBU_COLORS.length]}
                       stroke="none"
                     />
                   ))}
@@ -214,7 +220,7 @@ export default function Dashboard() {
         </div>
 
         {/* Finances Card */}
-        <div 
+        <div
           className="neumorphic-card finances-card"
           onClick={() => navigate('/fin')}
         >
@@ -229,34 +235,34 @@ export default function Dashboard() {
           <div className="chart-container bar-chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={financeData}>
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="var(--shadow-dark)" 
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--shadow-dark)"
                   vertical={false}
                   opacity={0.3}
                 />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="var(--text-secondary)" 
+                <XAxis
+                  dataKey="name"
+                  stroke="var(--text-secondary)"
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis 
-                  stroke="var(--text-secondary)" 
+                <YAxis
+                  stroke="var(--text-secondary)"
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip contentStyle={customTooltipStyle} />
-                <Bar 
-                  dataKey="income" 
-                  fill="var(--primary-blue)" 
-                  radius={[10, 10, 0, 0]} 
+                <Bar
+                  dataKey="income"
+                  fill="var(--primary-blue)"
+                  radius={[10, 10, 0, 0]}
                   animationDuration={1500}
                 />
-                <Bar 
-                  dataKey="expenses" 
-                  fill="var(--red)" 
-                  radius={[10, 10, 0, 0]} 
+                <Bar
+                  dataKey="expenses"
+                  fill="var(--red)"
+                  radius={[10, 10, 0, 0]}
                   animationDuration={1500}
                   opacity={0.8}
                 />
@@ -266,7 +272,7 @@ export default function Dashboard() {
         </div>
 
         {/* Medicine Stock Card */}
-        <div 
+        <div
           className="neumorphic-card medstock-card"
           onClick={() => navigate('/med')}
         >
@@ -285,7 +291,7 @@ export default function Dashboard() {
                 <span className="progress-value">{item.stock}%</span>
               </div>
               <div className="progress-container">
-                <div 
+                <div
                   className={getProgressBarClass(item.stock)}
                   style={{ width: `${item.stock}%` }}
                 ></div>
@@ -295,7 +301,7 @@ export default function Dashboard() {
         </div>
 
         {/* Lab Desk Card */}
-        <div 
+        <div
           className="neumorphic-card labdesk-card"
           onClick={() => navigate('/lab')}
         >
@@ -328,7 +334,7 @@ export default function Dashboard() {
         </div>
 
         {/* New Appointment Card */}
-        <div 
+        <div
           className="neumorphic-card appointment-card"
           onClick={() => navigate('/doc')}
         >

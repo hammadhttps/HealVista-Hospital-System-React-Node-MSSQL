@@ -177,6 +177,16 @@ const getTestsByPatient = async (req, res) => {
     }
 };
 
+const getTotalLabTestsCount = async (req, res) => {
+  try {
+    const result = await sql.query`SELECT COUNT(*) AS total FROM LabTests`;
+    res.status(200).json({ total: result.recordset[0].total });
+  } catch (err) {
+    console.error('Error fetching total lab tests count:', err);
+    res.status(500).json({ error: 'Failed to fetch lab tests count' });
+  }
+};
+
 module.exports = {
     getAllTests,
     getTestById,
@@ -184,5 +194,6 @@ module.exports = {
     updateTest,
     deleteTest,
     getTestsByStatus,
-    getTestsByPatient
+    getTestsByPatient,
+    getTotalLabTestsCount
 };

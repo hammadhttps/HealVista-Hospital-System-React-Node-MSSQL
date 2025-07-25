@@ -6,7 +6,8 @@ const {
   updateTest,
   deleteTest,
   getTestsByStatus,
-  getTestsByPatient
+  getTestsByPatient,
+  getTotalLabTestsCount
 } = require('../controller/labController');
 
 const router = express.Router();
@@ -18,5 +19,6 @@ router.put('/:id', updateTest);                        // UPDATE a test
 router.delete('/:id', deleteTest);                     // DELETE a test
 router.get('/status/:status', getTestsByStatus);       // GET tests by status
 router.get('/patient/:patientId', getTestsByPatient);  // GET tests by patient ID
+router.get('/stats/total', getTotalLabTestsCount);
 
 module.exports = router;

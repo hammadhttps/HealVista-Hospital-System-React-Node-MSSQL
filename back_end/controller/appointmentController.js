@@ -164,10 +164,32 @@ const submitFeedback = async (req, res) => {
     }
 };
 
+const getTotalAppointmentsCount = async (req, res) => {
+  try {
+    const result = await sql.query`SELECT COUNT(*) AS total FROM Appointments`;
+    res.status(200).json({ total: result.recordset[0].total });
+  } catch (err) {
+    console.error('Error fetching total appointment count:', err);
+    res.status(500).json({ error: 'Failed to fetch appointment count' });
+  }
+};
+
+const getTotalBillingCount = async (req, res) => {
+  try {
+    const result = await sql.query`SELECT COUNT(*) AS total FROM Billing`;
+    res.status(200).json({ total: result.recordset[0].total });
+  } catch (err) {
+    console.error('Error fetching total billing count:', err);
+    res.status(500).json({ error: 'Failed to fetch billing count' });
+  }
+};
+
 module.exports = {
     createAppointment,
     getAppointmentsByDoctor,
     getAppointmentsByPatient,
     updateAppointmentStatus,
-    submitFeedback
+    submitFeedback,
+    getTotalAppointmentsCount,
+    getTotalBillingCount
 };
