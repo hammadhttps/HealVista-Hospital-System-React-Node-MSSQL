@@ -39,10 +39,10 @@ export default function Login() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-green-100">
-                {/* Logo Section - Replace src with your logo.png */}
+
                 <div className="flex flex-col items-center mb-4">
                     <div className="mb-4">
-                        {/* This is where you'll place your logo.png */}
+
                         <img
                             src="logo\logo.png"
                             alt="HealVista Hospital Logo"
