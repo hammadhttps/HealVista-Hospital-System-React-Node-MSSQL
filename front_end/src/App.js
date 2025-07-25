@@ -11,7 +11,7 @@ import Fin  from './fin';
 import Med from './med';
 import Lab from './lab';
 import Doctors from './doc';
-<<<<<<< HEAD
+
 import NeumorphicLogin from './Counter';
 
 function PrivateRoute({ children, adminOnly, doctorOnly, patientOnly }) {
@@ -23,8 +23,6 @@ function PrivateRoute({ children, adminOnly, doctorOnly, patientOnly }) {
   if (patientOnly && user.role !== 'patient') return <Navigate to="/" />;
   return children;
 }
-=======
->>>>>>> 27fb6a828c4777fbda6ae654467109bbc2de8752
 
 function App() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
