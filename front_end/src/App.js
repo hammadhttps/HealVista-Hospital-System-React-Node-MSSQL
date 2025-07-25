@@ -8,7 +8,6 @@ import Fin  from './fin';
 import Med from './med';
 import Lab from './lab';
 import Doctors from './doc';
-import './App.css'; // Keep if you need global styles
 
 function App() {
   return (
